@@ -8,6 +8,9 @@
     "extTranslator": {
         "message": "Norsk (bokmål) oversettelse av John Inge Røst"
     },
+    "actionTitleDisabled": {
+        "message": "Ny Fane, Nytt Vindu (Deaktivert)"
+    },
     "optionsTitle": {
         "message": "Ny fane, Nytt Vindu Alternativer"
     },

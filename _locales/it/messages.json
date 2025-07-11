@@ -8,6 +8,9 @@
     "extTranslator": {
         "message": "Giorgio"
     },
+    "actionTitleDisabled": {
+        "message": "Nuova Scheda, Nuova Finestra (Disabilitato)"
+    },
     "optionsTitle": {
         "message": "Opzioni per Nuova Scheda, Nuova Finestra"
     },

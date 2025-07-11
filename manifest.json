@@ -11,9 +11,19 @@
     "permissions": [
         "storage"
     ],
+    "action": {
+        "default_icon": {
+            "24": "img/icon24.png",
+            "32": "img/icon32.png",
+            "48": "img/icon48.png",
+            "128": "img/icon128.png"
+        },
+        "default_title": "__MSG_actionTitle__"
+    },
     "default_locale": "en",
     "icons": {
         "48": "img/icon48.png",
+        "64": "img/icon64.png",
         "128": "img/icon128.png"
     },
     "minimum_chrome_version": "92"

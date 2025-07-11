@@ -1,13 +1,25 @@
-import {getOption, setOption} from "./lib/option.js";
+import {getOption, setOption, optionNames} from "./lib/option.js";
 
 const CASCADE = 0;
 const SAME_AS_PARENT = 1;
 const MAXIMIZE = 2;
 
+let extensionEnabled = true;
+
+getOption(optionNames.extensionEnabled, function(enabled) {
+    extensionEnabled = enabled;
+    updateIcon(enabled);
+});
+
 chrome.tabs.onCreated.addListener(function(tab){
     if (tab.index == 0){
         return;
     }
+
+    if (!extensionEnabled) {
+        return;
+    }
+
     chrome.windows.get(tab.windowId, function(curWindow){
         getOption("newWindowsPosition", function(newWindowsPosition){
             var createData = {
@@ -54,3 +66,29 @@ chrome.tabs.onCreated.addListener(function(tab){
         });
     });
 });
+
+chrome.action.onClicked.addListener(() => {
+    extensionEnabled = !extensionEnabled;
+    setOption(optionNames.extensionEnabled, extensionEnabled);
+    updateIcon(extensionEnabled);
+});
+
+function updateIcon(enabled) {
+    const iconPath = enabled ? {
+        "24": "img/icon24.png",
+        "32": "img/icon32.png",
+        "48": "img/icon48.png",
+    } : {
+        "24": "img/icon-disabled24.png",
+        "32": "img/icon-disabled32.png",
+        "48": "img/icon-disabled48.png",
+    };
+    chrome.action.setIcon({
+        path: iconPath,
+    });
+
+    const title = chrome.i18n.getMessage(enabled ? "actionTitle" : "actionTitleDisabled");
+    chrome.action.setTitle({
+        title: title,
+    });
+}
