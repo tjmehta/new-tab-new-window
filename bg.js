@@ -31,6 +31,17 @@ chrome.windows.onRemoved.addListener(function(windowId) {
     lockedWindows.delete(windowId);
 });
 
+// Handle new windows being created
+chrome.windows.onCreated.addListener(function(window) {
+    if (perWindowModeEnabled) {
+        // New windows should always start unlocked in per-window mode
+        // Update all tabs in the new window to show disabled icon
+        setTimeout(() => {
+            updateWindowIcon(window.id);
+        }, 100);
+    }
+});
+
 chrome.tabs.onCreated.addListener(function(tab){
     if (tab.index == 0){
         return;
@@ -60,13 +71,23 @@ chrome.tabs.onCreated.addListener(function(tab){
             // if the default window position was used, simply create
             // a new window and done.
             if (newWindowsPosition == CASCADE){
-                chrome.windows.create(createData);
+                chrome.windows.create(createData, function(newWindow) {
+                    // Update icon for new window in per-window mode
+                    if (perWindowModeEnabled && newWindow) {
+                        updateWindowIcon(newWindow.id);
+                    }
+                });
                 return;
             }
             // always maximize new window
             if (newWindowsPosition == MAXIMIZE){
                 createData.state = "maximized";
-                chrome.windows.create(createData);
+                chrome.windows.create(createData, function(newWindow) {
+                    // Update icon for new window in per-window mode
+                    if (perWindowModeEnabled && newWindow) {
+                        updateWindowIcon(newWindow.id);
+                    }
+                });
                 return;
             }
             // new window need to be placed to where the current window is.
@@ -84,14 +105,24 @@ chrome.tabs.onCreated.addListener(function(tab){
                 // just create a new window and done if the current
                 // window is in special state.
                 if (nonPositionalStates[curWindow.state]){
-                    chrome.windows.create(createData);
+                    chrome.windows.create(createData, function(newWindow) {
+                        // Update icon for new window in per-window mode
+                        if (perWindowModeEnabled && newWindow) {
+                            updateWindowIcon(newWindow.id);
+                        }
+                    });
                     return;
                 }
                 // create a new window with position setting.
                 delete createData.state;
                 createData.top = curWindow.top;
                 createData.left = curWindow.left;
-                chrome.windows.create(createData);
+                chrome.windows.create(createData, function(newWindow) {
+                    // Update icon for new window in per-window mode
+                    if (perWindowModeEnabled && newWindow) {
+                        updateWindowIcon(newWindow.id);
+                    }
+                });
             });
         });
     });
@@ -174,8 +205,32 @@ chrome.windows.onFocusChanged.addListener(function(windowId) {
 // Update icon when new tabs are created
 chrome.tabs.onCreated.addListener(function(tab) {
     if (perWindowModeEnabled && tab.windowId) {
-        // Set icon for new tab
-        const isLocked = lockedWindows.has(tab.windowId);
+        // Delay icon update to ensure tab is fully initialized
+        setTimeout(() => {
+            // Set icon for new tab
+            const isLocked = lockedWindows.has(tab.windowId);
+            const iconPath = isLocked ? {
+                "24": "img/icon24.png",
+                "32": "img/icon32.png",
+                "48": "img/icon48.png",
+            } : {
+                "24": "img/icon-disabled24.png",
+                "32": "img/icon-disabled32.png",
+                "48": "img/icon-disabled48.png",
+            };
+            chrome.action.setIcon({
+                path: iconPath,
+                tabId: tab.id
+            });
+        }, 100);
+    }
+});
+
+// Handle tabs being attached to windows (moved between windows)
+chrome.tabs.onAttached.addListener(function(tabId, attachInfo) {
+    if (perWindowModeEnabled) {
+        const windowId = attachInfo.newWindowId;
+        const isLocked = lockedWindows.has(windowId);
         const iconPath = isLocked ? {
             "24": "img/icon24.png",
             "32": "img/icon32.png",
@@ -187,7 +242,7 @@ chrome.tabs.onCreated.addListener(function(tab) {
         };
         chrome.action.setIcon({
             path: iconPath,
-            tabId: tab.id
+            tabId: tabId
         });
     }
 });
