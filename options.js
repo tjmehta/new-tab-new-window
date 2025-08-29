@@ -20,3 +20,13 @@ getOption("newWindowsPosition", function(value){
 $("testBtn").addEventListener("click", function(){
     window.open("options_test.html", "_blank");
 });
+
+// Handle perWindowMode checkbox
+const perWindowCheckbox = document.getElementById('perWindowMode');
+perWindowCheckbox.addEventListener('change', function() {
+    setOption('perWindowMode', this.checked);
+});
+
+getOption('perWindowMode', function(value) {
+    perWindowCheckbox.checked = value;
+});

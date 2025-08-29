@@ -5,10 +5,22 @@ const SAME_AS_PARENT = 1;
 const MAXIMIZE = 2;
 
 let extensionEnabled = true;
+let lockedWindows = new Set(); // Track locked window IDs
+let perWindowModeEnabled = false;
 
 getOption(optionNames.extensionEnabled, function(enabled) {
     extensionEnabled = enabled;
     updateIcon(enabled);
+});
+
+// Load per-window mode setting on startup
+getOption(optionNames.perWindowMode, function(enabled) {
+    perWindowModeEnabled = enabled;
+});
+
+// Clean up closed windows
+chrome.windows.onRemoved.addListener(function(windowId) {
+    lockedWindows.delete(windowId);
 });
 
 chrome.tabs.onCreated.addListener(function(tab){
@@ -16,7 +28,17 @@ chrome.tabs.onCreated.addListener(function(tab){
         return;
     }
 
-    if (!extensionEnabled) {
+    let shouldCreateNewWindow = false;
+    
+    if (perWindowModeEnabled) {
+        // Per-window mode: only act on locked windows
+        shouldCreateNewWindow = lockedWindows.has(tab.windowId);
+    } else {
+        // Original global mode
+        shouldCreateNewWindow = extensionEnabled;
+    }
+    
+    if (!shouldCreateNewWindow) {
         return;
     }
 
@@ -67,10 +89,22 @@ chrome.tabs.onCreated.addListener(function(tab){
     });
 });
 
-chrome.action.onClicked.addListener(() => {
-    extensionEnabled = !extensionEnabled;
-    setOption(optionNames.extensionEnabled, extensionEnabled);
-    updateIcon(extensionEnabled);
+chrome.action.onClicked.addListener((tab) => {
+    if (perWindowModeEnabled) {
+        // Toggle lock state for current window
+        const windowId = tab.windowId;
+        if (lockedWindows.has(windowId)) {
+            lockedWindows.delete(windowId);
+        } else {
+            lockedWindows.add(windowId);
+        }
+        updateWindowBadge(windowId);
+    } else {
+        // Original global toggle behavior
+        extensionEnabled = !extensionEnabled;
+        setOption(optionNames.extensionEnabled, extensionEnabled);
+        updateIcon(extensionEnabled);
+    }
 });
 
 function updateIcon(enabled) {
@@ -92,3 +126,56 @@ function updateIcon(enabled) {
         title: title,
     });
 }
+
+function updateWindowBadge(windowId) {
+    const isLocked = lockedWindows.has(windowId);
+    
+    // Get all tabs in the window to update badge for all
+    chrome.tabs.query({windowId: windowId}, function(tabs) {
+        tabs.forEach(tab => {
+            chrome.action.setBadgeText({
+                text: isLocked ? "🔒" : "",
+                tabId: tab.id
+            });
+        });
+    });
+    
+    const titleKey = isLocked ? "actionTitleLocked" : "actionTitleUnlocked";
+    chrome.action.setTitle({
+        title: chrome.i18n.getMessage(titleKey)
+    });
+}
+
+// Update badges when switching windows
+chrome.windows.onFocusChanged.addListener(function(windowId) {
+    if (perWindowModeEnabled && windowId !== chrome.windows.WINDOW_ID_NONE) {
+        updateWindowBadge(windowId);
+    }
+});
+
+// Update badge when new tabs are created
+chrome.tabs.onCreated.addListener(function(tab) {
+    if (perWindowModeEnabled && tab.windowId) {
+        // Set badge for new tab
+        const isLocked = lockedWindows.has(tab.windowId);
+        chrome.action.setBadgeText({
+            text: isLocked ? "🔒" : "",
+            tabId: tab.id
+        });
+    }
+});
+
+// Listen for option changes to update perWindowModeEnabled
+chrome.storage.onChanged.addListener(function(changes, namespace) {
+    if (namespace === 'sync') {
+        if (changes[optionNames.perWindowMode]) {
+            perWindowModeEnabled = changes[optionNames.perWindowMode].newValue;
+            // Clear all badges and locked windows when mode changes
+            if (!perWindowModeEnabled) {
+                lockedWindows.clear();
+                chrome.action.setBadgeText({text: ""});
+                updateIcon(extensionEnabled);
+            }
+        }
+    }
+});
