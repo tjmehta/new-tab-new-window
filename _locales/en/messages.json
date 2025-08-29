@@ -41,5 +41,20 @@
     },
     "optionsTestCloseButton": {
         "message": "Close"
+    },
+    "optionsPerWindowMode": {
+        "message": "Per-Window Tab Control"
+    },
+    "optionsPerWindowModeLabel": {
+        "message": "Enable window-specific lock mode"
+    },
+    "optionsPerWindowModeHelp": {
+        "message": "When enabled, click the extension icon to lock/unlock individual windows. Locked windows force new tabs to open as new windows."
+    },
+    "actionTitleLocked": {
+        "message": "New Tab, New Window (Window Locked)"
+    },
+    "actionTitleUnlocked": {
+        "message": "New Tab, New Window (Window Unlocked)"
     }
 }
