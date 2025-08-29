@@ -16,6 +16,14 @@ getOption(optionNames.extensionEnabled, function(enabled) {
 // Load per-window mode setting on startup
 getOption(optionNames.perWindowMode, function(enabled) {
     perWindowModeEnabled = enabled;
+    // If per-window mode is enabled on startup, set all windows to show disabled icon
+    if (perWindowModeEnabled) {
+        chrome.windows.getAll({}, function(windows) {
+            windows.forEach(window => {
+                updateWindowIcon(window.id);
+            });
+        });
+    }
 });
 
 // Clean up closed windows
@@ -98,7 +106,7 @@ chrome.action.onClicked.addListener((tab) => {
         } else {
             lockedWindows.add(windowId);
         }
-        updateWindowBadge(windowId);
+        updateWindowIcon(windowId);
     } else {
         // Original global toggle behavior
         extensionEnabled = !extensionEnabled;
@@ -127,14 +135,24 @@ function updateIcon(enabled) {
     });
 }
 
-function updateWindowBadge(windowId) {
+function updateWindowIcon(windowId) {
     const isLocked = lockedWindows.has(windowId);
     
-    // Get all tabs in the window to update badge for all
+    // Get all tabs in the window to update icon for all
     chrome.tabs.query({windowId: windowId}, function(tabs) {
+        const iconPath = isLocked ? {
+            "24": "img/icon24.png",
+            "32": "img/icon32.png",
+            "48": "img/icon48.png",
+        } : {
+            "24": "img/icon-disabled24.png",
+            "32": "img/icon-disabled32.png",
+            "48": "img/icon-disabled48.png",
+        };
+        
         tabs.forEach(tab => {
-            chrome.action.setBadgeText({
-                text: isLocked ? "🔒" : "",
+            chrome.action.setIcon({
+                path: iconPath,
                 tabId: tab.id
             });
         });
@@ -146,20 +164,29 @@ function updateWindowBadge(windowId) {
     });
 }
 
-// Update badges when switching windows
+// Update icons when switching windows
 chrome.windows.onFocusChanged.addListener(function(windowId) {
     if (perWindowModeEnabled && windowId !== chrome.windows.WINDOW_ID_NONE) {
-        updateWindowBadge(windowId);
+        updateWindowIcon(windowId);
     }
 });
 
-// Update badge when new tabs are created
+// Update icon when new tabs are created
 chrome.tabs.onCreated.addListener(function(tab) {
     if (perWindowModeEnabled && tab.windowId) {
-        // Set badge for new tab
+        // Set icon for new tab
         const isLocked = lockedWindows.has(tab.windowId);
-        chrome.action.setBadgeText({
-            text: isLocked ? "🔒" : "",
+        const iconPath = isLocked ? {
+            "24": "img/icon24.png",
+            "32": "img/icon32.png",
+            "48": "img/icon48.png",
+        } : {
+            "24": "img/icon-disabled24.png",
+            "32": "img/icon-disabled32.png",
+            "48": "img/icon-disabled48.png",
+        };
+        chrome.action.setIcon({
+            path: iconPath,
             tabId: tab.id
         });
     }
@@ -170,11 +197,17 @@ chrome.storage.onChanged.addListener(function(changes, namespace) {
     if (namespace === 'sync') {
         if (changes[optionNames.perWindowMode]) {
             perWindowModeEnabled = changes[optionNames.perWindowMode].newValue;
-            // Clear all badges and locked windows when mode changes
+            // Clear locked windows and reset icons when mode changes
             if (!perWindowModeEnabled) {
                 lockedWindows.clear();
-                chrome.action.setBadgeText({text: ""});
                 updateIcon(extensionEnabled);
+            } else {
+                // When enabling per-window mode, set all windows to unlocked (disabled icon)
+                chrome.windows.getAll({}, function(windows) {
+                    windows.forEach(window => {
+                        updateWindowIcon(window.id);
+                    });
+                });
             }
         }
     }
